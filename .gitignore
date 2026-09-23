@@ -1,0 +1,40 @@
+# Built artifacts
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Gradle
+.gradle/
+build/
+**/build/
+local.properties
+.gradle-kotlin-dsl/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+.DS_Store
+
+# Android Studio / Captures
+captures/
+.externalNativeBuild/
+.cxx/
+*.hprof
+*.log
+
+# Kotlin
+.kotlin/
+
+# Signing (never commit)
+*.jks
+*.keystore
+keystore.properties
+
+# OS
+Thumbs.db
