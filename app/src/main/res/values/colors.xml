@@ -2,7 +2,18 @@
 <resources>
     <color name="black">#FF121212</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="felt_green">#FF1B5E3B</color>
-    <color name="chip_gold">#FFC9A227</color>
-    <color name="ic_launcher_background">#1B5E3B</color>
+    <color name="sky_blue">#FF4BA3E3</color>
+    <color name="sky_blue_dark">#FF2E7CB8</color>
+    <color name="sky_blue_deep">#FF1E6FA8</color>
+    <color name="chip_gold">#FFE0B14A</color>
+    <color name="surface">#FFF3F8FC</color>
+    <color name="surface_muted">#FFDCEAF5</color>
+    <color name="text_secondary">#FF5A6B78</color>
+    <color name="profit_positive">#FF1B7A3D</color>
+    <color name="profit_negative">#FFB3261E</color>
+    <color name="btn_add_points">#FF2E9E6B</color>
+    <color name="btn_add_points_container">#FFD8F3E6</color>
+    <color name="btn_remove_points">#FFE07A3A</color>
+    <color name="btn_remove_points_container">#FFF8E4D6</color>
+    <color name="ic_launcher_background">#4BA3E3</color>
 </resources>

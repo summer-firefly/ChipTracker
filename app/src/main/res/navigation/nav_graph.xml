@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/setupFragment">
+
+    <fragment
+        android:id="@+id/setupFragment"
+        android:name="com.chiptrack.app.ui.setup.SetupFragment"
+        android:label="@string/setup_title">
+        <action
+            android:id="@+id/action_setup_to_table"
+            app:destination="@id/tableFragment"
+            app:popUpTo="@id/setupFragment"
+            app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_setup_to_settle"
+            app:destination="@id/settleFragment"
+            app:popUpTo="@id/setupFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/tableFragment"
+        android:name="com.chiptrack.app.ui.table.TableFragment"
+        android:label="@string/table_title">
+        <action
+            android:id="@+id/action_table_to_final_return"
+            app:destination="@id/finalReturnFragment" />
+        <action
+            android:id="@+id/action_table_to_settle"
+            app:destination="@id/settleFragment"
+            app:popUpTo="@id/tableFragment"
+            app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_table_to_setup"
+            app:destination="@id/setupFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_table_to_history"
+            app:destination="@id/historyFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/finalReturnFragment"
+        android:name="com.chiptrack.app.ui.settle.FinalReturnFragment"
+        android:label="@string/final_return_title">
+        <action
+            android:id="@+id/action_final_return_to_settle"
+            app:destination="@id/settleFragment"
+            app:popUpTo="@id/tableFragment"
+            app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_final_return_to_setup"
+            app:destination="@id/setupFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/settleFragment"
+        android:name="com.chiptrack.app.ui.settle.SettleFragment"
+        android:label="@string/settle_title">
+        <action
+            android:id="@+id/action_settle_to_setup"
+            app:destination="@id/setupFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_settle_to_history"
+            app:destination="@id/historyFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/historyFragment"
+        android:name="com.chiptrack.app.ui.history.HistoryFragment"
+        android:label="@string/history_global_title">
+        <argument
+            android:name="playerId"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="playerName"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+
+</navigation>
