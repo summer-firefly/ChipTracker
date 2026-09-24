@@ -42,6 +42,16 @@ android {
     }
 }
 
+// 本地预制名单不进 release 包（gitignore 只管仓库，不管 APK）
+tasks.matching { it.name == "mergeReleaseAssets" }.configureEach {
+    doLast {
+        val preset = outputs.files.singleFile.resolve("players.preset.json")
+        if (preset.exists() && preset.delete()) {
+            logger.lifecycle("Excluded players.preset.json from release assets")
+        }
+    }
+}
+
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
