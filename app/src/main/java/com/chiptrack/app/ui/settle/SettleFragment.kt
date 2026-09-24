@@ -6,10 +6,12 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.chiptrack.app.AiReportUiState
 import com.chiptrack.app.GameSessionViewModel
 import com.chiptrack.app.R
 import com.chiptrack.app.databinding.FragmentSettleBinding
@@ -26,6 +28,7 @@ class SettleFragment : Fragment() {
     private val binding get() = _binding!!
     private val viewModel: GameSessionViewModel by activityViewModels()
     private lateinit var adapter: SettlePlayersAdapter
+    private var autoReportRequested = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -42,7 +45,6 @@ class SettleFragment : Fragment() {
         binding.settleList.layoutManager = LinearLayoutManager(requireContext())
         binding.settleList.adapter = adapter
 
-        // 系统返回与顶栏返回一致：清空并回开局
         requireActivity().onBackPressedDispatcher.addCallback(
             viewLifecycleOwner,
             object : OnBackPressedCallback(true) {
@@ -60,10 +62,21 @@ class SettleFragment : Fragment() {
         }
         binding.shareButton.setOnClickListener {
             val session = viewModel.session.value ?: return@setOnClickListener
-            ShareHelper.shareSessionTable(this, session)
+            ShareHelper.shareSessionTable(
+                fragment = this,
+                session = session,
+                aiReport = viewModel.currentAiReportText()
+            )
         }
         binding.newGameButton.setOnClickListener {
             goHome()
+        }
+        binding.aiReportRetryButton.setOnClickListener {
+            viewModel.generateAiReport(force = true)
+        }
+
+        viewModel.aiReport.observe(viewLifecycleOwner) { state ->
+            renderAiReport(state)
         }
 
         viewModel.session.observe(viewLifecycleOwner) { session ->
@@ -108,6 +121,52 @@ class SettleFragment : Fragment() {
             binding.totalProfitText.setTextColor(
                 ProfitFormat.color(requireContext(), session.totalProfit)
             )
+
+            if (!autoReportRequested) {
+                autoReportRequested = true
+                viewModel.generateAiReport(force = false)
+            }
+        }
+    }
+
+    private fun renderAiReport(state: AiReportUiState) {
+        when (state) {
+            AiReportUiState.Disabled -> {
+                binding.aiReportCard.isVisible = false
+            }
+            AiReportUiState.Idle -> {
+                binding.aiReportCard.isVisible = true
+                binding.aiReportProgress.isVisible = false
+                binding.aiReportStatusText.isVisible = true
+                binding.aiReportStatusText.text = getString(R.string.ai_report_idle)
+                binding.aiReportText.isVisible = false
+                binding.aiReportRetryButton.isVisible = true
+            }
+            AiReportUiState.Loading -> {
+                binding.aiReportCard.isVisible = true
+                binding.aiReportProgress.isVisible = true
+                binding.aiReportStatusText.isVisible = true
+                binding.aiReportStatusText.text = getString(R.string.ai_report_loading)
+                binding.aiReportText.isVisible = false
+                binding.aiReportRetryButton.isVisible = false
+            }
+            is AiReportUiState.Ready -> {
+                binding.aiReportCard.isVisible = true
+                binding.aiReportProgress.isVisible = false
+                binding.aiReportStatusText.isVisible = false
+                binding.aiReportText.isVisible = true
+                binding.aiReportText.text = state.text
+                binding.aiReportRetryButton.isVisible = true
+            }
+            is AiReportUiState.Error -> {
+                binding.aiReportCard.isVisible = true
+                binding.aiReportProgress.isVisible = false
+                binding.aiReportStatusText.isVisible = true
+                binding.aiReportStatusText.text =
+                    getString(R.string.ai_report_error, state.message)
+                binding.aiReportText.isVisible = false
+                binding.aiReportRetryButton.isVisible = true
+            }
         }
     }
 

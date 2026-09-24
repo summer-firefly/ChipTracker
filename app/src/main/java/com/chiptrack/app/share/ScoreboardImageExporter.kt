@@ -40,6 +40,7 @@ object ScoreboardImageExporter {
         activity: Activity,
         session: GameSession,
         deltas: List<PlayerShareDelta> = emptyList(),
+        aiReport: String? = null,
         onResult: (Result<Uri>) -> Unit
     ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -48,7 +49,7 @@ object ScoreboardImageExporter {
 
         val density = activity.resources.displayMetrics.density.coerceAtLeast(1f)
         val widthPx = (CSS_WIDTH * density).roundToInt()
-        val html = buildHtml(session, deltas)
+        val html = buildHtml(session, deltas, aiReport)
         val container = activity.findViewById<ViewGroup>(android.R.id.content)
 
         val webView = WebView(activity).apply {
@@ -216,7 +217,11 @@ object ScoreboardImageExporter {
         )
     }
 
-    private fun buildHtml(session: GameSession, deltas: List<PlayerShareDelta>): String {
+    private fun buildHtml(
+        session: GameSession,
+        deltas: List<PlayerShareDelta>,
+        aiReport: String? = null
+    ): String {
         val settled = session.phase == SessionPhase.SETTLED
         val title = if (settled) "猫和老鼠 · 本局结算表" else "猫和老鼠 · 对局实时表"
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
@@ -309,6 +314,18 @@ object ScoreboardImageExporter {
               $items
             </div>
             """.trimIndent()
+        }
+
+        val reportBlock = if (!aiReport.isNullOrBlank()) {
+            val body = escape(aiReport.trim()).replace("\n", "<br/>")
+            """
+            <div class="report">
+              <div class="report-title">本局 AI 复盘</div>
+              <div class="report-body">$body</div>
+            </div>
+            """.trimIndent()
+        } else {
+            ""
         }
 
         val rows = players.joinToString("\n") { p ->
@@ -572,6 +589,26 @@ object ScoreboardImageExporter {
   }
   .foot-line { float: left; }
   .logo { float: right; font-weight: 700; color: #C45500; }
+  .report {
+    margin: 0 18px 16px;
+    padding: 14px 16px;
+    background: #FFFBF5;
+    border: 1px solid #F0E0D0;
+    border-radius: 14px;
+  }
+  .report-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #C45500;
+    margin-bottom: 8px;
+  }
+  .report-body {
+    font-size: 14px;
+    line-height: 1.55;
+    color: #3D2F24;
+    white-space: normal;
+    word-break: break-word;
+  }
 </style>
 </head>
 <body>
@@ -601,6 +638,7 @@ object ScoreboardImageExporter {
           $rows
         </tbody>
       </table>
+      $reportBlock
       <div class="footer">
         <div class="foot-line">$profitTotal</div>
         <div class="logo">猫和老鼠计分器</div>
