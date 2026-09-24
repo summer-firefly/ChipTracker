@@ -33,26 +33,35 @@
 
             <TextView
                 android:id="@+id/playerNameText"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
-                android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
+                android:maxWidth="140dp"
                 android:textAppearance="?attr/textAppearanceTitleSmall"
                 android:textColor="@color/black" />
+
+            <!-- 把金额顶到右侧，避免与时间贴在一起 -->
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:minWidth="16dp" />
 
             <TextView
                 android:id="@+id/amountText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:gravity="end"
                 android:textAppearance="?attr/textAppearanceTitleMedium" />
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="8dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
@@ -70,7 +79,7 @@
                 android:id="@+id/detailText"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="10dp"
                 android:layout_weight="1"
                 android:textAppearance="?attr/textAppearanceBodySmall"
                 android:textColor="@color/text_secondary" />

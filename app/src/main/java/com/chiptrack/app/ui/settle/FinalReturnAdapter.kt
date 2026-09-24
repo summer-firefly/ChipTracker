@@ -13,7 +13,7 @@ import com.chiptrack.app.model.Player
 class FinalReturnAdapter : ListAdapter<Player, FinalReturnAdapter.VH>(Diff) {
     private val drafts = mutableMapOf<String, String>()
 
-    fun draftOf(playerId: String): String = drafts[playerId] ?: "0"
+    fun draftOf(playerId: String): String = drafts[playerId].orEmpty()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val binding = ItemFinalReturnBinding.inflate(
@@ -51,7 +51,9 @@ class FinalReturnAdapter : ListAdapter<Player, FinalReturnAdapter.VH>(Diff) {
             val draft = draftOf(player.id)
             if (binding.amountInput.text?.toString() != draft) {
                 binding.amountInput.setText(draft)
-                binding.amountInput.setSelection(draft.length.coerceAtMost(draft.length))
+                if (draft.isNotEmpty()) {
+                    binding.amountInput.setSelection(draft.length)
+                }
             }
         }
     }
