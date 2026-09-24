@@ -13,6 +13,7 @@ import com.chiptrack.app.data.PlayersPresetLoader
 import com.chiptrack.app.databinding.FragmentSetupBinding
 import com.chiptrack.app.databinding.ItemSetupPlayerBinding
 import com.chiptrack.app.model.SessionPhase
+import com.chiptrack.app.share.macro.ShareMacroSettingsUi
 import com.chiptrack.app.ui.navigateOnce
 import com.google.android.material.textfield.TextInputEditText
 
@@ -36,6 +37,9 @@ class SetupFragment : Fragment() {
 
         updateEmptyHint()
         setupPresetButton()
+        binding.shareMacroSettingsButton.setOnClickListener {
+            ShareMacroSettingsUi.show(requireContext())
+        }
         binding.addPlayerButton.setOnClickListener { addPlayerRow() }
         binding.startButton.setOnClickListener { startGame() }
 

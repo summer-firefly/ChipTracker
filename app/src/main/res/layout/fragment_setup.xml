@@ -110,6 +110,14 @@
             android:visibility="gone" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/shareMacroSettingsButton"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/action_share_macro_settings" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/addPlayerButton"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="match_parent"

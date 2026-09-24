@@ -7,10 +7,13 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.chiptrack.app.R
 import com.chiptrack.app.model.GameSession
+import com.chiptrack.app.share.macro.ShareMacroController
+import com.chiptrack.app.share.macro.ShareMacroStore
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
  * 不接微信 SDK：优先直达微信；记住上次目标 App；必要时再走系统选择器。
+ * 测试版可选无障碍宏：首次录制微信内点击，之后回放。
  */
 object ShareHelper {
     private const val WECHAT_PACKAGE = "com.tencent.mm"
@@ -40,6 +43,11 @@ object ShareHelper {
 
     private fun launchShare(fragment: Fragment, uri: Uri) {
         val context = fragment.requireContext()
+        val macroStore = ShareMacroStore(context)
+        if (macroStore.featureEnabled) {
+            if (tryMacroShare(fragment, uri, macroStore)) return
+        }
+
         val prefs = ShareTargetStore(context)
         val preferred = prefs.lastPackage
         val wechatInstalled = isPackageInstalled(context, WECHAT_PACKAGE)
@@ -59,6 +67,55 @@ object ShareHelper {
 
         // 3) 让用户选：微信 / 其他
         showSharePicker(fragment, uri, wechatInstalled, prefs)
+    }
+
+    /**
+     * @return true 表示已接管本次分享（含弹出引导）；false 表示应走普通分享。
+     */
+    private fun tryMacroShare(
+        fragment: Fragment,
+        uri: Uri,
+        macroStore: ShareMacroStore
+    ): Boolean {
+        val context = fragment.requireContext()
+        if (!ShareMacroController.isServiceEnabled(context)) {
+            MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.share_macro_need_a11y_title)
+                .setMessage(R.string.share_macro_need_a11y_body)
+                .setPositiveButton(R.string.share_macro_open_a11y) { _, _ ->
+                    ShareMacroController.openAccessibilitySettings(context)
+                }
+                .setNegativeButton(R.string.share_macro_share_without) { _, _ ->
+                    shareToWechatOrFallback(fragment, uri)
+                }
+                .setNeutralButton(R.string.share_macro_action_disable) { _, _ ->
+                    macroStore.featureEnabled = false
+                    shareToWechatOrFallback(fragment, uri)
+                }
+                .show()
+            return true
+        }
+
+        if (!shareToPackage(fragment, uri, WECHAT_PACKAGE)) {
+            Toast.makeText(context, R.string.share_wechat_failed, Toast.LENGTH_SHORT).show()
+            return false
+        }
+        ShareTargetStore(context).lastPackage = WECHAT_PACKAGE
+
+        if (macroStore.hasSteps()) {
+            ShareMacroController.scheduleReplay(context)
+        } else {
+            ShareMacroController.startRecording(context)
+        }
+        return true
+    }
+
+    private fun shareToWechatOrFallback(fragment: Fragment, uri: Uri) {
+        if (shareToPackage(fragment, uri, WECHAT_PACKAGE)) {
+            ShareTargetStore(fragment.requireContext()).lastPackage = WECHAT_PACKAGE
+            return
+        }
+        openSystemChooser(fragment, uri)
     }
 
     private fun showSharePicker(

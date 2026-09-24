@@ -109,4 +109,33 @@
     <string name="share_summary_taken_returned">拿取合计 %1$d · 退还合计 %2$d</string>
     <string name="share_summary_profit">盈亏合计 %1$s</string>
     <string name="share_summary_playing">对局进行中</string>
+
+    <!-- 分享宏测试（无障碍） -->
+    <string name="action_share_macro_settings">分享宏测试设置</string>
+    <string name="share_macro_service_label">猫和老鼠·分享宏（测试）</string>
+    <string name="share_macro_service_desc">测试功能：录制并回放微信分享时的点击。仅监听微信界面，用于本机自测；微信改版后可能失效，请勿用于未授权自动化。</string>
+    <string name="share_macro_settings_title">分享宏（测试版）</string>
+    <string name="share_macro_settings_body">流程：① 打开系统无障碍并启用本服务 ② 第一次点「分享表格」后，按绿条提示在微信里点选会话并点「发送」（触摸浮层会录下含发送在内的点击），再返回本 App ③ 之后分享会尝试回放并回到本 App。\n\n可能因微信界面/列表滚动失败，失败时请清除宏重录。默认开启；可随时关闭改回普通分享。</string>
+    <string name="share_macro_open_a11y">打开无障碍设置</string>
+    <string name="share_macro_clear">清除已录宏</string>
+    <string name="share_macro_action_enable">启用宏分享</string>
+    <string name="share_macro_action_disable">关闭宏分享</string>
+    <string name="share_macro_feature_on">宏分享：已启用</string>
+    <string name="share_macro_feature_off">宏分享：已关闭</string>
+    <string name="share_macro_a11y_on">无障碍服务：已开启</string>
+    <string name="share_macro_a11y_off">无障碍服务：未开启</string>
+    <string name="share_macro_steps_count">已录制：%1$d 步</string>
+    <string name="share_macro_steps_empty">已录制：无（下次分享将进入录制）</string>
+    <string name="share_macro_need_a11y">请先在系统设置中开启「猫和老鼠·分享宏」无障碍服务</string>
+    <string name="share_macro_need_a11y_title">需要无障碍权限</string>
+    <string name="share_macro_need_a11y_body">宏分享测试需要开启无障碍服务以录制/回放微信内点击。也可本次不用宏，或关闭宏分享。</string>
+    <string name="share_macro_share_without">本次普通分享</string>
+    <string name="share_macro_recording">正在录制：屏幕顶部有绿条。请在微信里点选会话并点「发送」，手指点击都会被记录；完成后返回本 App</string>
+    <string name="share_macro_recording_banner">宏录制中 · 请点选会话并点发送 · 完成后返回计分器</string>
+    <string name="share_macro_saved">已保存分享宏（%1$d 步），下次将尝试自动回放</string>
+    <string name="share_macro_saved_empty">未录到有效点击。请确认录制时屏幕顶部有绿条提示，再重试一次完整选人+发送。</string>
+    <string name="share_macro_replaying">正在回放分享宏…</string>
+    <string name="share_macro_replay_done">宏回放结束</string>
+    <string name="share_macro_replay_failed">宏回放未完成</string>
+    <string name="share_macro_cleared">已清除分享宏</string>
 </resources>
