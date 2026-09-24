@@ -8,9 +8,11 @@ import com.chiptrack.app.data.SessionRepository
 import com.chiptrack.app.model.ChipRecord
 import com.chiptrack.app.model.GameSession
 import com.chiptrack.app.model.SessionPhase
+import com.chiptrack.app.share.ShareSnapshotStore
 
 class GameSessionViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = SessionRepository(application)
+    private val shareSnapshotStore = ShareSnapshotStore(application)
 
     private val _session = MutableLiveData(GameSession())
     val session: LiveData<GameSession> = _session
@@ -32,6 +34,7 @@ class GameSessionViewModel(application: Application) : AndroidViewModel(applicat
 
     fun startGame(names: List<String>, buyIn: Int) {
         runCatching {
+            shareSnapshotStore.clear()
             persist(GameSession().start(names, buyIn))
         }.onFailure { _message.value = it.message }
     }
@@ -58,6 +61,7 @@ class GameSessionViewModel(application: Application) : AndroidViewModel(applicat
 
     fun newGame() {
         repository.clear()
+        shareSnapshotStore.clear()
         _session.value = GameSession()
     }
 
