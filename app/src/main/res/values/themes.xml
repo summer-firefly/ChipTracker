@@ -6,6 +6,6 @@
         <item name="colorSecondary">@color/chip_gold</item>
         <item name="android:statusBarColor">@color/sky_blue_deep</item>
         <item name="android:navigationBarColor">@color/surface</item>
-        <item name="android:windowBackground">@color/surface</item>
+        <item name="android:windowBackground">@drawable/bg_app</item>
     </style>
 </resources>

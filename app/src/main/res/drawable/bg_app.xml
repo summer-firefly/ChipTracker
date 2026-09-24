@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <bitmap
+            android:gravity="fill"
+            android:src="@drawable/bg_cat_mouse_scene" />
+    </item>
+    <!-- 半透明遮罩，保证文字卡片可读 -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#D9FFF6EB" />
+        </shape>
+    </item>
+</layer-list>
