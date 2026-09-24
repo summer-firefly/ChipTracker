@@ -4,6 +4,7 @@
 *.ap_
 *.dex
 *.class
+dist/
 
 # Gradle
 .gradle/
