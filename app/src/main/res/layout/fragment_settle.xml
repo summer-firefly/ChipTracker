@@ -6,31 +6,16 @@
     android:background="@drawable/bg_app"
     android:padding="16dp">
 
-    <androidx.appcompat.widget.AppCompatImageButton
-        android:id="@+id/backButton"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="@string/action_back_home"
-        android:padding="8dp"
-        android:scaleType="centerInside"
-        android:src="@drawable/ic_arrow_back"
-        android:tint="@color/sky_blue_deep"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
     <TextView
         android:id="@+id/titleText"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
         android:text="@string/settle_title"
         android:textAppearance="?attr/textAppearanceHeadlineSmall"
         android:textColor="@color/sky_blue_deep"
-        app:layout_constraintBottom_toBottomOf="@id/backButton"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/backButton"
-        app:layout_constraintTop_toTopOf="@id/backButton" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/reconcileCard"
@@ -42,7 +27,7 @@
         app:cardElevation="0dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/backButton"
+        app:layout_constraintTop_toBottomOf="@id/titleText"
         app:strokeColor="@color/surface_muted"
         app:strokeWidth="1dp">
 

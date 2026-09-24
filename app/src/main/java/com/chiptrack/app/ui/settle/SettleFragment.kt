@@ -42,7 +42,7 @@ class SettleFragment : Fragment() {
         binding.settleList.layoutManager = LinearLayoutManager(requireContext())
         binding.settleList.adapter = adapter
 
-        binding.backButton.setOnClickListener { goHome() }
+        // 系统返回与顶栏返回一致：清空并回开局
         requireActivity().onBackPressedDispatcher.addCallback(
             viewLifecycleOwner,
             object : OnBackPressedCallback(true) {

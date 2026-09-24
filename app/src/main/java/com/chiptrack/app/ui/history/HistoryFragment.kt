@@ -4,10 +4,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.chiptrack.app.GameSessionViewModel
 import com.chiptrack.app.R
@@ -31,20 +29,9 @@ class HistoryFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val playerId = arguments?.getString(ARG_PLAYER_ID)?.takeIf { it.isNotBlank() }
-        val playerName = arguments?.getString(ARG_PLAYER_NAME)?.takeIf { it.isNotBlank() }
         adapter = ChipRecordsAdapter(showPlayerName = playerId == null)
         binding.recordsList.layoutManager = LinearLayoutManager(requireContext())
         binding.recordsList.adapter = adapter
-
-        val title = if (playerName != null) {
-            getString(R.string.history_player_title, playerName)
-        } else {
-            getString(R.string.history_global_title)
-        }
-        (requireActivity() as? AppCompatActivity)?.supportActionBar?.apply {
-            this.title = title
-            setDisplayHomeAsUpEnabled(true)
-        }
 
         binding.subtitleText.text = if (playerId == null) {
             getString(R.string.history_global_subtitle)
@@ -63,10 +50,6 @@ class HistoryFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        (requireActivity() as? AppCompatActivity)?.supportActionBar?.apply {
-            title = getString(R.string.app_name)
-            setDisplayHomeAsUpEnabled(false)
-        }
         super.onDestroyView()
         _binding = null
     }
