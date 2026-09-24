@@ -40,5 +40,10 @@ keystore.properties
 # Local preset players (copy from players.preset.json.example)
 app/src/main/assets/players.preset.json
 
+# Secrets / local env (copy from .env.example)
+.env
+.env.local
+.env.*.local
+
 # OS
 Thumbs.db
