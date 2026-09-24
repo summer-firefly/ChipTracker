@@ -265,6 +265,20 @@ object ScoreboardImageExporter {
             )
         }
 
+        // 结算表：盈亏最高的前三名挂冠/亚/季军
+        val podiumById: Map<String, Pair<String, String>> = if (settled) {
+            players.take(3).mapIndexed { index, player ->
+                val badge = when (index) {
+                    0 -> "gold" to "🥇冠军"
+                    1 -> "silver" to "🥈亚军"
+                    else -> "bronze" to "🥉季军"
+                }
+                player.id to badge
+            }.toMap()
+        } else {
+            emptyMap()
+        }
+
         val changesBlock = if (changed.isEmpty()) {
             ""
         } else {
@@ -301,13 +315,22 @@ object ScoreboardImageExporter {
             val d = deltaById[p.id]
             val exited = p.status == PlayerStatus.EXITED
             val changedRow = d?.hasChange == true
-            val rowClass = when {
-                exited && changedRow -> """ class="changed exited""""
-                exited -> """ class="exited""""
-                changedRow -> """ class="changed""""
-                else -> ""
+            val podium = podiumById[p.id]
+            val rowClass = buildString {
+                val classes = mutableListOf<String>()
+                if (changedRow) classes += "changed"
+                if (exited) classes += "exited"
+                when (podium?.first) {
+                    "gold" -> classes += "podium-gold"
+                    "silver" -> classes += "podium-silver"
+                    "bronze" -> classes += "podium-bronze"
+                }
+                if (classes.isNotEmpty()) append(""" class="${classes.joinToString(" ")}"""")
             }
             val nameExtra = buildString {
+                podium?.let { (_, label) ->
+                    append(""" <span class="medal ${podium.first}">$label</span>""")
+                }
                 if (exited) append(""" <span class="tag-exit">离桌</span>""")
                 when {
                     d?.isNew == true -> append(""" <span class="tag">新</span>""")
@@ -475,6 +498,31 @@ object ScoreboardImageExporter {
     padding: 1px 6px;
     vertical-align: middle;
   }
+  .medal {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 2px 8px;
+    margin-left: 4px;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .medal.gold {
+    color: #8A5A00;
+    background: #FFE7A0;
+    border: 1px solid #E0B14A;
+  }
+  .medal.silver {
+    color: #4A5560;
+    background: #E8EEF2;
+    border: 1px solid #B0B8C0;
+  }
+  .medal.bronze {
+    color: #7A3E14;
+    background: #F3D5B8;
+    border: 1px solid #D08A4A;
+  }
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   thead th {
     background: #FFE8D0;
@@ -497,6 +545,9 @@ object ScoreboardImageExporter {
   tbody tr.changed { background: #FFF4D6 !important; }
   tbody tr.exited { opacity: 0.72; }
   tbody tr.exited td.name { color: #6B5A4A; }
+  tbody tr.podium-gold { background: #FFF6D6 !important; }
+  tbody tr.podium-silver { background: #F4F7FA !important; }
+  tbody tr.podium-bronze { background: #FFF0E4 !important; }
   td.name { font-weight: 700; color: #121212; }
   td.num { text-align: right; font-weight: 700; }
   .amount-wrap { display: inline-block; text-align: right; }
