@@ -10,6 +10,17 @@ Android 德州扑克计分 App（猫鼠卡通主题）。
 > 界面与图标为原创猫鼠卡通风格，非华纳《猫和老鼠》正版素材。  
 > UI 字体：站酷快乐体（[ZCOOL KuaiLe](https://fonts.google.com/specimen/ZCOOL+KuaiLe)，SIL Open Font License）。
 
+## 预制玩家名单
+
+本地文件（不进 git）：
+
+```bash
+cp app/src/main/assets/players.preset.json.example \
+   app/src/main/assets/players.preset.json
+```
+
+然后按需编辑 `players.preset.json`。开局页会出现「使用预制名单」按钮。
+
 ## 环境要求
 
 - JDK 17

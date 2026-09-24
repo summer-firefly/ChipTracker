@@ -9,6 +9,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.chiptrack.app.GameSessionViewModel
 import com.chiptrack.app.R
+import com.chiptrack.app.data.PlayersPresetLoader
 import com.chiptrack.app.databinding.FragmentSetupBinding
 import com.chiptrack.app.databinding.ItemSetupPlayerBinding
 import com.chiptrack.app.model.SessionPhase
@@ -34,6 +35,7 @@ class SetupFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         updateEmptyHint()
+        setupPresetButton()
         binding.addPlayerButton.setOnClickListener { addPlayerRow() }
         binding.startButton.setOnClickListener { startGame() }
 
@@ -52,7 +54,40 @@ class SetupFragment : Fragment() {
         }
     }
 
-    private fun addPlayerRow(prefill: String = "") {
+    private fun setupPresetButton() {
+        val preset = PlayersPresetLoader.load(requireContext())
+        if (preset == null) {
+            binding.presetPlayersButton.visibility = View.GONE
+            return
+        }
+        binding.presetPlayersButton.visibility = View.VISIBLE
+        binding.presetPlayersButton.setOnClickListener {
+            applyPreset(preset.players, preset.defaultBuyIn)
+        }
+    }
+
+    private fun applyPreset(names: List<String>, defaultBuyIn: Int?) {
+        clearPlayerRows()
+        names.forEachIndexed { index, name ->
+            addPlayerRow(name, requestFocus = index == names.lastIndex)
+        }
+        if (defaultBuyIn != null && defaultBuyIn > 0) {
+            binding.buyInInput.setText(defaultBuyIn.toString())
+        }
+        Toast.makeText(
+            requireContext(),
+            getString(R.string.preset_players_loaded, names.size),
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun clearPlayerRows() {
+        binding.playerNamesContainer.removeAllViews()
+        nameInputs.clear()
+        updateEmptyHint()
+    }
+
+    private fun addPlayerRow(prefill: String = "", requestFocus: Boolean = true) {
         val rowBinding = ItemSetupPlayerBinding.inflate(
             layoutInflater,
             binding.playerNamesContainer,
@@ -69,8 +104,10 @@ class SetupFragment : Fragment() {
         binding.playerNamesContainer.addView(rowBinding.root)
         nameInputs += rowBinding.nameInput
         updateEmptyHint()
-        rowBinding.nameInput.requestFocus()
-        scrollRowIntoView(rowBinding.root)
+        if (requestFocus) {
+            rowBinding.nameInput.requestFocus()
+            scrollRowIntoView(rowBinding.root)
+        }
     }
 
     private fun scrollRowIntoView(target: View) {

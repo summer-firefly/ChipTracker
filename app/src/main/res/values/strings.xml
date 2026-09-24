@@ -10,7 +10,10 @@
     <string name="action_remove_player">移除</string>
     <string name="action_start">开始本局</string>
     <string name="player_name_hint">玩家名称</string>
-    <string name="setup_empty_hint">还没有玩家，请点击下方添加</string>
+    <string name="setup_empty_hint">还没有玩家，请点击下方添加，或使用预制名单</string>
+    <string name="action_use_preset_players">使用预制名单</string>
+    <string name="preset_players_loaded">已填入预制名单（%1$d 人）</string>
+    <string name="preset_players_missing">未找到预制名单文件 players.preset.json</string>
     <string name="error_need_players">请至少添加一位玩家</string>
 
     <string name="table_title">对局中</string>
