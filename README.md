@@ -7,7 +7,8 @@ Android 德州扑克计分 App（猫鼠卡通主题）。
 - 对账：多退 / 少退差额一目了然  
 - 分享计分表图片（可直达微信）
 
-> 界面与图标为原创猫鼠卡通风格，非华纳《猫和老鼠》正版素材。
+> 界面与图标为原创猫鼠卡通风格，非华纳《猫和老鼠》正版素材。  
+> UI 字体：站酷快乐体（[ZCOOL KuaiLe](https://fonts.google.com/specimen/ZCOOL+KuaiLe)，SIL Open Font License）。
 
 ## 环境要求
 

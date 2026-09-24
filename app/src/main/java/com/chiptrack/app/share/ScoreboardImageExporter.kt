@@ -87,7 +87,7 @@ object ScoreboardImageExporter {
             override fun onPageFinished(view: WebView, url: String?) {
                 view.postDelayed({
                     snapshotAfterLayout(view, density, widthPx, attempt = 0, onDone = ::finish)
-                }, 320)
+                }, 450)
             }
         }
 
@@ -374,12 +374,18 @@ object ScoreboardImageExporter {
 <meta name="viewport" content="width=$CSS_WIDTH, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  @font-face {
+    font-family: 'ZCOOLKuaiLe';
+    src: url('fonts/ZCOOLKuaiLe-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
   html, body {
     width: ${CSS_WIDTH}px;
     min-height: 100%;
     background: #FFF6EB;
     color: #121212;
-    font-family: sans-serif;
+    font-family: 'ZCOOLKuaiLe', 'PingFang SC', sans-serif;
   }
   .page {
     width: ${CSS_WIDTH}px;
