@@ -1,5 +1,6 @@
 package com.chiptrack.app.share
 
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -13,6 +14,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
  * 不接微信 SDK：优先直达微信；记住上次目标 App；必要时再走系统选择器。
+ * 结算有 AI 复盘时分享两张图：成绩单 + 复盘。
  * 测试版可选无障碍宏：首次录制微信内点击，之后回放。
  */
 object ShareHelper {
@@ -33,11 +35,31 @@ object ShareHelper {
         val deltas = snapshotStore.deltasFor(session)
         Toast.makeText(context, R.string.share_generating, Toast.LENGTH_SHORT).show()
 
-        ScoreboardImageExporter.capture(activity, session, deltas, aiReport) { result ->
-            result
-                .onSuccess { uri ->
-                    snapshotStore.saveFromSession(session)
-                    launchShare(fragment, uri, aiReport)
+        ScoreboardImageExporter.capture(activity, session, deltas) { tableResult ->
+            tableResult
+                .onSuccess { tableUri ->
+                    val report = aiReport?.trim()?.takeIf { it.isNotEmpty() }
+                    if (report == null) {
+                        snapshotStore.saveFromSession(session)
+                        launchShare(fragment, listOf(tableUri))
+                        return@onSuccess
+                    }
+                    ScoreboardImageExporter.captureAiReport(activity, report) { reportResult ->
+                        reportResult
+                            .onSuccess { reportUri ->
+                                snapshotStore.saveFromSession(session)
+                                launchShare(fragment, listOf(tableUri, reportUri))
+                            }
+                            .onFailure {
+                                Toast.makeText(
+                                    context,
+                                    R.string.share_report_image_failed,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                snapshotStore.saveFromSession(session)
+                                launchShare(fragment, listOf(tableUri))
+                            }
+                    }
                 }
                 .onFailure {
                     Toast.makeText(context, R.string.share_failed, Toast.LENGTH_SHORT).show()
@@ -45,42 +67,36 @@ object ShareHelper {
         }
     }
 
-    private fun launchShare(fragment: Fragment, uri: Uri, aiReport: String? = null) {
+    private fun launchShare(fragment: Fragment, uris: List<Uri>) {
+        if (uris.isEmpty()) return
         val context = fragment.requireContext()
         val macroStore = ShareMacroStore(context)
         if (macroStore.featureEnabled) {
-            if (tryMacroShare(fragment, uri, macroStore, aiReport)) return
+            if (tryMacroShare(fragment, uris, macroStore)) return
         }
 
         val prefs = ShareTargetStore(context)
         val preferred = prefs.lastPackage
         val wechatInstalled = isPackageInstalled(context, WECHAT_PACKAGE)
 
-        // 1) 上次记住的目标仍可用 → 直达
-        if (!preferred.isNullOrBlank() && canShareTo(context, preferred, uri, aiReport)) {
-            if (shareToPackage(fragment, uri, preferred, aiReport)) return
+        if (!preferred.isNullOrBlank() && canShareTo(context, preferred, uris)) {
+            if (shareToPackage(fragment, uris, preferred)) return
         }
 
-        // 2) 微信已安装 → 直达微信并记住
-        if (wechatInstalled && canShareTo(context, WECHAT_PACKAGE, uri, aiReport)) {
-            if (shareToPackage(fragment, uri, WECHAT_PACKAGE, aiReport)) {
+        if (wechatInstalled && canShareTo(context, WECHAT_PACKAGE, uris)) {
+            if (shareToPackage(fragment, uris, WECHAT_PACKAGE)) {
                 prefs.lastPackage = WECHAT_PACKAGE
                 return
             }
         }
 
-        // 3) 让用户选：微信 / 其他
-        showSharePicker(fragment, uri, wechatInstalled, prefs, aiReport)
+        showSharePicker(fragment, uris, wechatInstalled, prefs)
     }
 
-    /**
-     * @return true 表示已接管本次分享（含弹出引导）；false 表示应走普通分享。
-     */
     private fun tryMacroShare(
         fragment: Fragment,
-        uri: Uri,
-        macroStore: ShareMacroStore,
-        aiReport: String?
+        uris: List<Uri>,
+        macroStore: ShareMacroStore
     ): Boolean {
         val context = fragment.requireContext()
         if (!ShareMacroController.isServiceEnabled(context)) {
@@ -91,17 +107,17 @@ object ShareHelper {
                     ShareMacroController.openAccessibilitySettings(context)
                 }
                 .setNegativeButton(R.string.share_macro_share_without) { _, _ ->
-                    shareToWechatOrFallback(fragment, uri, aiReport)
+                    shareToWechatOrFallback(fragment, uris)
                 }
                 .setNeutralButton(R.string.share_macro_action_disable) { _, _ ->
                     macroStore.featureEnabled = false
-                    shareToWechatOrFallback(fragment, uri, aiReport)
+                    shareToWechatOrFallback(fragment, uris)
                 }
                 .show()
             return true
         }
 
-        if (!shareToPackage(fragment, uri, WECHAT_PACKAGE, aiReport)) {
+        if (!shareToPackage(fragment, uris, WECHAT_PACKAGE)) {
             Toast.makeText(context, R.string.share_wechat_failed, Toast.LENGTH_SHORT).show()
             return false
         }
@@ -115,20 +131,19 @@ object ShareHelper {
         return true
     }
 
-    private fun shareToWechatOrFallback(fragment: Fragment, uri: Uri, aiReport: String?) {
-        if (shareToPackage(fragment, uri, WECHAT_PACKAGE, aiReport)) {
+    private fun shareToWechatOrFallback(fragment: Fragment, uris: List<Uri>) {
+        if (shareToPackage(fragment, uris, WECHAT_PACKAGE)) {
             ShareTargetStore(fragment.requireContext()).lastPackage = WECHAT_PACKAGE
             return
         }
-        openSystemChooser(fragment, uri, aiReport)
+        openSystemChooser(fragment, uris)
     }
 
     private fun showSharePicker(
         fragment: Fragment,
-        uri: Uri,
+        uris: List<Uri>,
         wechatInstalled: Boolean,
-        prefs: ShareTargetStore,
-        aiReport: String?
+        prefs: ShareTargetStore
     ) {
         val context = fragment.requireContext()
         val options = buildList {
@@ -137,7 +152,7 @@ object ShareHelper {
         }.toTypedArray()
 
         if (options.size == 1) {
-            openSystemChooser(fragment, uri, aiReport)
+            openSystemChooser(fragment, uris)
             return
         }
 
@@ -146,14 +161,14 @@ object ShareHelper {
             .setItems(options) { _, which ->
                 val label = options[which]
                 if (label == context.getString(R.string.share_to_wechat)) {
-                    if (shareToPackage(fragment, uri, WECHAT_PACKAGE, aiReport)) {
+                    if (shareToPackage(fragment, uris, WECHAT_PACKAGE)) {
                         prefs.lastPackage = WECHAT_PACKAGE
                     } else {
                         Toast.makeText(context, R.string.share_wechat_failed, Toast.LENGTH_SHORT).show()
-                        openSystemChooser(fragment, uri, aiReport)
+                        openSystemChooser(fragment, uris)
                     }
                 } else {
-                    openSystemChooser(fragment, uri, aiReport)
+                    openSystemChooser(fragment, uris)
                 }
             }
             .setNegativeButton(R.string.dialog_cancel, null)
@@ -162,18 +177,19 @@ object ShareHelper {
 
     private fun shareToPackage(
         fragment: Fragment,
-        uri: Uri,
-        packageName: String,
-        aiReport: String?
+        uris: List<Uri>,
+        packageName: String
     ): Boolean {
         val context = fragment.requireContext()
         return runCatching {
-            context.grantUriPermission(
-                packageName,
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-            val send = buildSendIntent(context, uri, aiReport).apply {
+            uris.forEach { uri ->
+                context.grantUriPermission(
+                    packageName,
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            val send = buildSendIntent(context, uris).apply {
                 setPackage(packageName)
             }
             fragment.startActivity(send)
@@ -183,28 +199,43 @@ object ShareHelper {
         }
     }
 
-    private fun openSystemChooser(fragment: Fragment, uri: Uri, aiReport: String?) {
+    private fun openSystemChooser(fragment: Fragment, uris: List<Uri>) {
         val context = fragment.requireContext()
-        val send = buildSendIntent(context, uri, aiReport)
+        val send = buildSendIntent(context, uris)
         val chooser = Intent.createChooser(send, context.getString(R.string.share_chooser_title))
         chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         fragment.startActivity(chooser)
     }
 
-    private fun buildSendIntent(context: Context, uri: Uri, aiReport: String? = null): Intent =
-        Intent(Intent.ACTION_SEND).apply {
-            type = "image/png"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.app_name))
-            val text = if (!aiReport.isNullOrBlank()) {
-                context.getString(R.string.share_text_with_report, aiReport.trim())
-            } else {
-                context.getString(R.string.share_text)
-            }
-            putExtra(Intent.EXTRA_TEXT, text)
-            clipData = android.content.ClipData.newUri(context.contentResolver, "share", uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    private fun buildSendIntent(context: Context, uris: List<Uri>): Intent {
+        val caption = if (uris.size > 1) {
+            context.getString(R.string.share_text_with_two_images)
+        } else {
+            context.getString(R.string.share_text)
         }
+        return if (uris.size <= 1) {
+            val uri = uris.first()
+            Intent(Intent.ACTION_SEND).apply {
+                type = "image/png"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.app_name))
+                putExtra(Intent.EXTRA_TEXT, caption)
+                clipData = ClipData.newUri(context.contentResolver, "share", uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        } else {
+            Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                type = "image/png"
+                putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+                putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.app_name))
+                putExtra(Intent.EXTRA_TEXT, caption)
+                val clip = ClipData.newUri(context.contentResolver, "share", uris.first())
+                uris.drop(1).forEach { clip.addItem(ClipData.Item(it)) }
+                clipData = clip
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        }
+    }
 
     private fun isPackageInstalled(context: Context, packageName: String): Boolean =
         runCatching {
@@ -215,11 +246,10 @@ object ShareHelper {
     private fun canShareTo(
         context: Context,
         packageName: String,
-        uri: Uri,
-        aiReport: String?
+        uris: List<Uri>
     ): Boolean {
         if (!isPackageInstalled(context, packageName)) return false
-        val intent = buildSendIntent(context, uri, aiReport).apply { setPackage(packageName) }
+        val intent = buildSendIntent(context, uris).apply { setPackage(packageName) }
         return intent.resolveActivity(context.packageManager) != null
     }
 }

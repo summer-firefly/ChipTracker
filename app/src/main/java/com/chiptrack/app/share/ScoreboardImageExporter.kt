@@ -26,34 +26,79 @@ import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /**
- * 用 WebView 渲染 HTML/CSS 表格，再截成高清 PNG。
+ * 用 WebView 渲染 HTML/CSS，再截成超高清 PNG。
  *
- * 关键：必须把 WebView 物理宽度设为「CSS 宽度 × density」，
- * 否则高分屏上 720 CSS px 的页面只会露出左边一截。
+ * 物理宽 = CSS 宽 × exportScale，同时
+ * setInitialScale(exportScale / deviceDensity × 100)，
+ * 否则会出现「大画布 + 内容缩在左上角」。
  */
 object ScoreboardImageExporter {
     /** HTML / CSS 设计宽度（css px） */
     private const val CSS_WIDTH = 720
+    /** 目标导出倍率（720×5 ≈ 3600px 宽） */
+    private val EXPORT_SCALE_CANDIDATES = floatArrayOf(5f, 4f, 3.5f, 3f)
+    /** 单张 Bitmap 像素上限，降低 OOM 风险 */
+    private const val MAX_BITMAP_PIXELS = 28_000_000L
     private const val BG_COLOR = 0xFFFFF6EB.toInt()
+    private const val CROP_PADDING_PX = 24
 
     fun capture(
         activity: Activity,
         session: GameSession,
         deltas: List<PlayerShareDelta> = emptyList(),
-        aiReport: String? = null,
         onResult: (Result<Uri>) -> Unit
     ) {
+        renderHtml(activity, buildHtml(session, deltas), onResult)
+    }
+
+    /** 单独生成「本局 AI 复盘」图片 */
+    fun captureAiReport(
+        activity: Activity,
+        reportText: String,
+        onResult: (Result<Uri>) -> Unit
+    ) {
+        val text = reportText.trim()
+        if (text.isEmpty()) {
+            onResult(Result.failure(IllegalArgumentException("empty report")))
+            return
+        }
+        renderHtml(activity, buildAiReportHtml(text), onResult)
+    }
+
+    private fun renderHtml(
+        activity: Activity,
+        html: String,
+        onResult: (Result<Uri>) -> Unit
+    ) {
+        renderHtmlAtScale(activity, html, scaleIndex = 0, onResult = onResult)
+    }
+
+    private fun renderHtmlAtScale(
+        activity: Activity,
+        html: String,
+        scaleIndex: Int,
+        onResult: (Result<Uri>) -> Unit
+    ) {
+        if (scaleIndex !in EXPORT_SCALE_CANDIDATES.indices) {
+            onResult(Result.failure(IllegalStateException("export scale exhausted")))
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             WebView.enableSlowWholeDocumentDraw()
         }
 
-        val density = activity.resources.displayMetrics.density.coerceAtLeast(1f)
-        val widthPx = (CSS_WIDTH * density).roundToInt()
-        val html = buildHtml(session, deltas, aiReport)
+        val deviceDensity = activity.resources.displayMetrics.density.coerceAtLeast(1f)
+        val exportScale = EXPORT_SCALE_CANDIDATES[scaleIndex]
+        val widthPx = (CSS_WIDTH * exportScale).roundToInt()
+        // 按设备 density 校准 initialScale，让 720 CSS px 铺满物理宽
+        val initialScalePercent = ((exportScale / deviceDensity) * 100f)
+            .roundToInt()
+            .coerceIn(100, 1000)
         val container = activity.findViewById<ViewGroup>(android.R.id.content)
 
         val webView = WebView(activity).apply {
             setBackgroundColor(BG_COLOR)
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null)
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = false
             settings.useWideViewPort = true
@@ -62,11 +107,12 @@ object ScoreboardImageExporter {
             settings.builtInZoomControls = false
             settings.displayZoomControls = false
             settings.allowFileAccess = true
+            settings.textZoom = 100
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
             visibility = View.VISIBLE
             translationX = 100_000f
-            setInitialScale(100)
+            setInitialScale(initialScalePercent)
         }
 
         container.addView(webView, ViewGroup.LayoutParams(widthPx, widthPx))
@@ -80,19 +126,30 @@ object ScoreboardImageExporter {
                     container.removeView(webView)
                     webView.destroy()
                 }
-                onResult(result)
+                val shouldRetry = result.exceptionOrNull() is OutOfMemoryError ||
+                    result.exceptionOrNull()?.message?.contains("bitmap", ignoreCase = true) == true
+                if (shouldRetry && scaleIndex + 1 < EXPORT_SCALE_CANDIDATES.size) {
+                    renderHtmlAtScale(activity, html, scaleIndex + 1, onResult)
+                } else {
+                    onResult(result)
+                }
             }
         }
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, url: String?) {
                 view.postDelayed({
-                    snapshotAfterLayout(view, density, widthPx, attempt = 0, onDone = ::finish)
-                }, 450)
+                    snapshotAfterLayout(
+                        webView = view,
+                        exportScale = exportScale,
+                        widthPx = widthPx,
+                        attempt = 0,
+                        onDone = ::finish
+                    )
+                }, 500)
             }
         }
 
-        // 用 asset 基址加载，便于引用分享配图
         webView.loadDataWithBaseURL(
             "file:///android_asset/",
             html,
@@ -104,7 +161,7 @@ object ScoreboardImageExporter {
 
     private fun snapshotAfterLayout(
         webView: WebView,
-        density: Float,
+        exportScale: Float,
         widthPx: Int,
         attempt: Int,
         onDone: (Result<Uri>) -> Unit
@@ -121,9 +178,15 @@ object ScoreboardImageExporter {
                 ?.replace("\"", "")
                 ?.toFloatOrNull()
                 ?.toInt()
-                ?.coerceIn(280, 6000)
+                ?.coerceIn(280, 8000)
                 ?: 640
-            val heightPx = ceil(cssHeight * density).toInt().coerceAtLeast(320)
+            val rawHeightPx = ceil(cssHeight * exportScale).toInt().coerceAtLeast(320)
+            // 超长图按像素上限压高度倍率等价裁切风险：改为失败降级倍率
+            if (widthPx.toLong() * rawHeightPx > MAX_BITMAP_PIXELS) {
+                onDone(Result.failure(OutOfMemoryError("bitmap too large: ${widthPx}x$rawHeightPx")))
+                return@evaluateJavascript
+            }
+            val heightPx = rawHeightPx
 
             val lp = webView.layoutParams
             lp.width = widthPx
@@ -138,19 +201,24 @@ object ScoreboardImageExporter {
                     )
                     webView.layout(0, 0, widthPx, heightPx)
 
-                    val bitmap = renderWebView(webView, widthPx, heightPx)
-                    if (isMostlyBlank(bitmap) && attempt < 2) {
-                        bitmap.recycle()
+                    val rawBitmap = renderWebView(webView, widthPx, heightPx)
+                    if (isMostlyBlank(rawBitmap) && attempt < 2) {
+                        rawBitmap.recycle()
                         webView.postDelayed({
-                            snapshotAfterLayout(webView, density, widthPx, attempt + 1, onDone)
-                        }, 220)
+                            snapshotAfterLayout(webView, exportScale, widthPx, attempt + 1, onDone)
+                        }, 280)
                         return@post
                     }
 
+                    val bitmap = cropToContent(rawBitmap).also { cropped ->
+                        if (cropped !== rawBitmap) rawBitmap.recycle()
+                    }
                     val activity = webView.context as Activity
                     val uri = saveToCache(activity, bitmap)
                     bitmap.recycle()
                     onDone(Result.success(uri))
+                } catch (oom: OutOfMemoryError) {
+                    onDone(Result.failure(oom))
                 } catch (t: Throwable) {
                     onDone(Result.failure(t))
                 }
@@ -159,7 +227,12 @@ object ScoreboardImageExporter {
     }
 
     private fun renderWebView(webView: WebView, width: Int, height: Int): Bitmap {
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val bitmap = try {
+            Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        } catch (oom: OutOfMemoryError) {
+            System.gc()
+            throw oom
+        }
         val canvas = Canvas(bitmap)
         canvas.drawColor(BG_COLOR)
 
@@ -175,6 +248,83 @@ object ScoreboardImageExporter {
             webView.draw(canvas)
         }
         return bitmap
+    }
+
+    /** 裁掉四周大面积空白，避免「内容挤在左上角」 */
+    private fun cropToContent(source: Bitmap): Bitmap {
+        val w = source.width
+        val h = source.height
+        if (w < 8 || h < 8) return source
+
+        var minX = w
+        var minY = h
+        var maxX = -1
+        var maxY = -1
+        val step = maxOf(1, minOf(w, h) / 400)
+
+        var y = 0
+        while (y < h) {
+            var x = 0
+            while (x < w) {
+                if (!isNearBg(source.getPixel(x, y))) {
+                    if (x < minX) minX = x
+                    if (y < minY) minY = y
+                    if (x > maxX) maxX = x
+                    if (y > maxY) maxY = y
+                }
+                x += step
+            }
+            y += step
+        }
+
+        if (maxX < minX || maxY < minY) return source
+
+        // 细扫边界，减少步进带来的误差
+        minX = refineEdge(source, minX, maxX, minY, maxY, horizontal = true, fromStart = true)
+        maxX = refineEdge(source, minX, maxX, minY, maxY, horizontal = true, fromStart = false)
+        minY = refineEdge(source, minX, maxX, minY, maxY, horizontal = false, fromStart = true)
+        maxY = refineEdge(source, minX, maxX, minY, maxY, horizontal = false, fromStart = false)
+
+        val left = (minX - CROP_PADDING_PX).coerceAtLeast(0)
+        val top = (minY - CROP_PADDING_PX).coerceAtLeast(0)
+        val right = (maxX + CROP_PADDING_PX).coerceAtMost(w - 1)
+        val bottom = (maxY + CROP_PADDING_PX).coerceAtMost(h - 1)
+        val cropW = right - left + 1
+        val cropH = bottom - top + 1
+
+        // 几乎没有空白就不用裁
+        if (cropW >= w * 0.92f && cropH >= h * 0.92f) return source
+        if (cropW < 32 || cropH < 32) return source
+
+        return Bitmap.createBitmap(source, left, top, cropW, cropH)
+    }
+
+    private fun refineEdge(
+        bitmap: Bitmap,
+        minX: Int,
+        maxX: Int,
+        minY: Int,
+        maxY: Int,
+        horizontal: Boolean,
+        fromStart: Boolean
+    ): Int {
+        if (horizontal) {
+            val range = if (fromStart) minX downTo 0 else maxX until bitmap.width
+            for (x in range) {
+                for (y in minY..maxY) {
+                    if (!isNearBg(bitmap.getPixel(x, y))) return x
+                }
+            }
+            return if (fromStart) minX else maxX
+        } else {
+            val range = if (fromStart) minY downTo 0 else maxY until bitmap.height
+            for (y in range) {
+                for (x in minX..maxX) {
+                    if (!isNearBg(bitmap.getPixel(x, y))) return y
+                }
+            }
+            return if (fromStart) minY else maxY
+        }
     }
 
     private fun isMostlyBlank(bitmap: Bitmap): Boolean {
@@ -198,10 +348,11 @@ object ScoreboardImageExporter {
     }
 
     private fun isNearBg(color: Int): Boolean {
+        // 只认画布米色 #FFF6EB，勿把白色卡片当背景裁掉
         val r = Color.red(color)
         val g = Color.green(color)
         val b = Color.blue(color)
-        return r >= 230 && g >= 230 && b >= 230
+        return abs(r - 255) <= 10 && abs(g - 246) <= 14 && abs(b - 235) <= 14
     }
 
     private fun saveToCache(activity: Activity, bitmap: Bitmap): Uri {
@@ -219,8 +370,7 @@ object ScoreboardImageExporter {
 
     private fun buildHtml(
         session: GameSession,
-        deltas: List<PlayerShareDelta>,
-        aiReport: String? = null
+        deltas: List<PlayerShareDelta>
     ): String {
         val settled = session.phase == SessionPhase.SETTLED
         val title = if (settled) "猫和老鼠 · 本局结算表" else "猫和老鼠 · 对局实时表"
@@ -314,18 +464,6 @@ object ScoreboardImageExporter {
               $items
             </div>
             """.trimIndent()
-        }
-
-        val reportBlock = if (!aiReport.isNullOrBlank()) {
-            val body = escape(aiReport.trim()).replace("\n", "<br/>")
-            """
-            <div class="report">
-              <div class="report-title">本局 AI 复盘</div>
-              <div class="report-body">$body</div>
-            </div>
-            """.trimIndent()
-        } else {
-            ""
         }
 
         val rows = players.joinToString("\n") { p ->
@@ -589,26 +727,6 @@ object ScoreboardImageExporter {
   }
   .foot-line { float: left; }
   .logo { float: right; font-weight: 700; color: #C45500; }
-  .report {
-    margin: 0 18px 16px;
-    padding: 14px 16px;
-    background: #FFFBF5;
-    border: 1px solid #F0E0D0;
-    border-radius: 14px;
-  }
-  .report-title {
-    font-size: 15px;
-    font-weight: 800;
-    color: #C45500;
-    margin-bottom: 8px;
-  }
-  .report-body {
-    font-size: 14px;
-    line-height: 1.55;
-    color: #3D2F24;
-    white-space: normal;
-    word-break: break-word;
-  }
 </style>
 </head>
 <body>
@@ -638,9 +756,89 @@ object ScoreboardImageExporter {
           $rows
         </tbody>
       </table>
-      $reportBlock
       <div class="footer">
         <div class="foot-line">$profitTotal</div>
+        <div class="logo">猫和老鼠计分器</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+        """.trimIndent()
+    }
+
+    private fun buildAiReportHtml(reportText: String): String {
+        val time = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+        val body = escape(reportText).replace("\n", "<br/>")
+        return """
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=$CSS_WIDTH"/>
+<style>
+  @font-face {
+    font-family: 'ZCOOLKuaiLe';
+    src: url('fonts/ZCOOLKuaiLe-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: ${CSS_WIDTH}px;
+    background: #FFF6EB;
+    font-family: 'ZCOOLKuaiLe', 'PingFang SC', 'Noto Sans SC', sans-serif;
+    color: #3D2F24;
+  }
+  .page { padding: 18px; }
+  .card {
+    background: #FFFFFF;
+    border-radius: 22px;
+    overflow: hidden;
+    border: 1px solid #F0E0D0;
+  }
+  .hero {
+    padding: 22px 22px 16px;
+    background:
+      url('share_header.png') top center / 100% auto no-repeat,
+      linear-gradient(180deg, #FFF1DE 0%, #FFFFFF 72%);
+  }
+  .brand-row { display: flex; align-items: center; gap: 10px; }
+  .brand-logo { width: 36px; height: 36px; border-radius: 10px; }
+  .brand { font-size: 15px; font-weight: 800; color: #C45500; }
+  h1 { margin-top: 14px; font-size: 28px; color: #1A120C; }
+  .meta { margin-top: 8px; font-size: 13px; color: #6B5A4A; }
+  .body {
+    padding: 8px 22px 22px;
+    font-size: 16px;
+    line-height: 1.65;
+    word-break: break-word;
+  }
+  .footer {
+    padding: 14px 22px 18px;
+    border-top: 1px solid #F5EADF;
+    color: #6B5A4A;
+    font-size: 13px;
+    overflow: hidden;
+  }
+  .foot-line { float: left; }
+  .logo { float: right; font-weight: 700; color: #C45500; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="card">
+      <div class="hero">
+        <div class="brand-row">
+          <img class="brand-logo" src="share_logo.png" alt="" />
+          <div class="brand">猫和老鼠计分器</div>
+        </div>
+        <h1>猫和老鼠 · 本局 AI 复盘</h1>
+        <div class="meta">$time</div>
+      </div>
+      <div class="body">$body</div>
+      <div class="footer">
+        <div class="foot-line">结算复盘</div>
         <div class="logo">猫和老鼠计分器</div>
       </div>
     </div>

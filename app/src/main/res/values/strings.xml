@@ -96,9 +96,10 @@
     <string name="share_to_other">其他应用</string>
     <string name="share_wechat_failed">无法打开微信，已改为系统分享</string>
     <string name="share_text">猫和老鼠计分器 · 本局计分表</string>
-    <string name="share_text_with_report">猫和老鼠计分器 · 本局计分表\n\n%1$s</string>
+    <string name="share_text_with_two_images">猫和老鼠计分器 · 结算表 + AI 复盘</string>
     <string name="share_empty">暂无玩家数据可分享</string>
     <string name="share_failed">生成分享图片失败</string>
+    <string name="share_report_image_failed">复盘图生成失败，已改为只分享结算表</string>
     <string name="share_generating">正在生成表格图片…</string>
     <string name="ai_report_title">本局 AI 复盘</string>
     <string name="ai_report_idle">点击右侧可生成复盘报告</string>
