@@ -64,6 +64,7 @@
     <string name="settle_reconcile_over">多退了 %1$d（退还合计大于拿取合计）</string>
     <string name="settle_reconcile_under">少退了 %1$d（退还合计小于拿取合计）</string>
     <string name="action_new_game">再开一局</string>
+    <string name="action_back_home">返回主界面</string>
     <string name="action_settle_history">查看本局流水</string>
     <string name="label_settle_taken">拿取 %1$d</string>
     <string name="label_settle_returned">退还 %1$d</string>

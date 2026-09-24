@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -41,6 +42,16 @@ class SettleFragment : Fragment() {
         binding.settleList.layoutManager = LinearLayoutManager(requireContext())
         binding.settleList.adapter = adapter
 
+        binding.backButton.setOnClickListener { goHome() }
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    goHome()
+                }
+            }
+        )
+
         binding.historyButton.setOnClickListener {
             findNavController().navigate(
                 R.id.action_settle_to_history,
@@ -52,8 +63,7 @@ class SettleFragment : Fragment() {
             ShareHelper.shareSessionTable(this, session)
         }
         binding.newGameButton.setOnClickListener {
-            viewModel.newGame()
-            navigateOnce(R.id.action_settle_to_setup)
+            goHome()
         }
 
         viewModel.session.observe(viewLifecycleOwner) { session ->
@@ -99,6 +109,11 @@ class SettleFragment : Fragment() {
                 ProfitFormat.color(requireContext(), session.totalProfit)
             )
         }
+    }
+
+    private fun goHome() {
+        viewModel.newGame()
+        navigateOnce(R.id.action_settle_to_setup)
     }
 
     private fun openPlayerHistory(player: Player) {
